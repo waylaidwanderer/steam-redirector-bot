@@ -1,0 +1,9 @@
+{
+  "name": "steam-redirector-bot",
+  "version": "1.0.0",
+  "description": "Automatically send all received items to a designated account",
+  "main": "index.js",
+  "repository": "https://github.com/waylaidwanderer/steam-redirector-bot",
+  "author": "waylaidwanderer",
+  "license": "MIT"
+}
