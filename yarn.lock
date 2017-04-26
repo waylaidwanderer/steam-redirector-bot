@@ -1241,7 +1241,7 @@ rechoir@^0.6.2:
   dependencies:
     resolve "^1.1.6"
 
-request@^2.61.0:
+request@^2.61.0, request@^2.81.0:
   version "2.81.0"
   resolved "https://registry.yarnpkg.com/request/-/request-2.81.0.tgz#c6928946a0e06c5f8d6f8a9333469ffda46298a0"
   dependencies:
@@ -1411,7 +1411,7 @@ steam-user@^3.19.1:
     steamid "^1.1.0"
     vdf "^0.0.2"
 
-steamcommunity@^3.30.0:
+steamcommunity@^3.30.0, steamcommunity@^3.30.7:
   version "3.30.7"
   resolved "https://registry.yarnpkg.com/steamcommunity/-/steamcommunity-3.30.7.tgz#c4cc2e89a04b376f7b243725976f8719b9a79c15"
   dependencies:
