@@ -21,7 +21,7 @@ This project requires async/await support.
 
 If your Node.js version is below 7.9.0 you'll need the `--harmony` flag (`node.js --harmony index.js`).
 
-1. Rename `config.example.js` to `config.js` and fill in your information.
+1. Rename `config.example.js` to `config.js` (or make a copy if you want to be able to update the repo files in the future with `git pull`) and fill in your information.
 2. Run the script with `node index.js`.
 
 ## License
