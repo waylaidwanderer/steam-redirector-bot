@@ -37,6 +37,7 @@ class Bot {
         await new Promise(resolve => setTimeout(resolve, 30 * 1000));
         await this.retryLogin();
         this.community.on('debug', (message) => {
+            if (message === 'Checking confirmations') return;
             console.log(`${this.tag} ${message}`);
         });
         this.community.startConfirmationChecker(10000, this.config.identity_secret);
