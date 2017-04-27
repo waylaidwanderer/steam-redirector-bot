@@ -77,7 +77,7 @@ async function retryLogin(community, tradeOfferManager) {
             } else {
                 console.log(err);
             }
-            await new Promise(resolve => setTimeout(resolve, 2500));
+            await new Promise(resolve => setTimeout(resolve, 30 * 1000));
         }
     }
     console.log('Can\'t login to account! Waiting a minute before trying again...');
