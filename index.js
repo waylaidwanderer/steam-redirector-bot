@@ -43,7 +43,13 @@ async function loginToSteamClient(client) {
         password: config.password,
         twoFactorCode: code,
     });
-    // TODO: handle invalid 2fa code
+    client.on('steamGuard', async (domain, callback) => {
+        console.log('Invalid 2FA code. Waiting 30s before generating new one...');
+        await new Promise(resolve => setTimeout(resolve, 30 * 1000));
+        const newCode = await generateAuthCode();
+        console.log(`New code generated: "${newCode}"`);
+        callback(newCode);
+    });
     await waitForEvent(client, 'loggedOn');
 }
 
