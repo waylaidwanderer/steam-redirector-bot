@@ -9,6 +9,6 @@ module.exports = {
         "no-use-before-define": ["error", "nofunc"],
         "indent": ["error", 4],
         "arrow-parens": [2, "as-needed", { "requireForBlockBody": true }],
-        "no-plusplus": ["error", { "allowForLoopAfterthoughts": true }]
+        "no-plusplus": 0
     }
 };

@@ -3,6 +3,6 @@ module.exports = {
     password: '',
     shared_secret: '',
     identity_secret: '',
-    target_steam_id: '',
-    proxy: ''
+    target: '', // Can be a SteamID or trade url
+    proxy: '',
 };

@@ -31,8 +31,28 @@ async function main() {
     console.log('Waiting 30s...');
     await new Promise(resolve => setTimeout(resolve, 30 * 1000));
     await retryLogin(community, manager);
+    community.on('debug', message => console.log(message));
+    community.startConfirmationChecker(10000, config.identity_secret);
     manager.on('newOffer', onNewOffer);
-    // TODO: check inventory and send trade offer to target in a loop
+    setInterval(() => {
+        manager.getInventoryContents(730, 2, true, onInventoryLoaded.bind(manager));
+    }, 10 * 1000);
+}
+
+async function onInventoryLoaded(err, inventory) {
+    if (err) {
+        console.log(`Error loading inventory: ${err}`);
+        return;
+    }
+    if (inventory.length === 0) return;
+    const chunkedItems = chunkArray(inventory, 50);
+    console.log(`${chunkedItems.length} groups of 50 items will be sent to ${config.target}.`);
+    chunkedItems.forEach((items, i) => {
+        const offer = this.createOffer(config.target);
+        items.forEach(item => offer.addMyItem(item));
+        console.log(`Sending trade offer for group #${i + 1} of ${items.length} items.`);
+        offer.send(sendErr => sendErr || console.log(sendErr));
+    });
 }
 
 async function onNewOffer(offer) {
@@ -143,4 +163,13 @@ function waitForEvent(client, name) {
     return new Promise((resolve) => {
         client.on(name, resolve);
     });
+}
+
+function chunkArray(arr, length) {
+    const sets = [];
+    const chunks = arr.length / length;
+    for (let i = 0, j = 0; i < chunks; i++, j += length) {
+        sets[i] = arr.slice(j, j + length);
+    }
+    return sets;
 }
