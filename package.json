@@ -7,7 +7,6 @@
   "author": "waylaidwanderer",
   "license": "MIT",
   "dependencies": {
-    "eslint": "^3.19.0",
     "request": "^2.81.0",
     "steam-client": "2.3.0-beta1",
     "steam-totp": "^1.4.0",
