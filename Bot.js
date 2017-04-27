@@ -40,6 +40,7 @@ class Bot {
             if (message === 'Checking confirmations') return;
             console.log(`${this.tag} ${message}`);
         });
+        this.community.on('sessionExpired', this.retryLogin.bind(this));
         this.community.startConfirmationChecker(10000, this.config.identity_secret);
         this.manager.on('newOffer', this.onNewOffer.bind(this));
         setInterval(() => {
