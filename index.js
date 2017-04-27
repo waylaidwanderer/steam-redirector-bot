@@ -6,7 +6,6 @@ const SteamUser = require('steam-user');
 const SteamTotp = require('steam-totp');
 const TradeOfferManager = require('steam-tradeoffer-manager');
 
-// noinspection JSIgnoredPromiseFromCall
 main();
 
 async function main() {
@@ -32,7 +31,36 @@ async function main() {
     console.log('Waiting 30s...');
     await new Promise(resolve => setTimeout(resolve, 30 * 1000));
     await retryLogin(community, manager);
-    // TODO
+    manager.on('newOffer', onNewOffer);
+    // TODO: check inventory and send trade offer to target in a loop
+}
+
+async function onNewOffer(offer) {
+    if (offer.itemsToGive.length > 0) {
+        offer.decline();
+        console.log(`Declined trade offer from ${offer.partner.toString()} trying to take my items.`);
+        return;
+    }
+    acceptOffer(offer);
+}
+
+async function acceptOffer(offer, tries) {
+    const currentTries = tries || 1;
+    offer.accept(true, async (err) => {
+        if (!err) {
+            console.log(`Accepted trade offer #${offer.id} from ${offer.partner.toString()}.`);
+            return;
+        }
+        // retry accept until successful
+        const minToWait = err.toString().includes('(16)') ? 15 : currentTries;
+        if (currentTries === 3) {
+            console.log('Failed to accept trade offer after 3 tries (might have been accepted already).');
+            return;
+        }
+        console.log(`Error accepting trade offer #${offer.id} from ${offer.partner.toString()}. Trying again in ${minToWait} minutes.`);
+        await new Promise(resolve => setTimeout(resolve, minToWait * 60 * 1000));
+        acceptOffer(offer, currentTries + 1);
+    });
 }
 
 async function loginToSteamClient(client) {
