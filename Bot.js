@@ -156,12 +156,7 @@ class Bot {
     /* eslint-enable no-await-in-loop */
 
     async generateAuthCode() {
-        return new Promise((resolve, reject) => {
-            SteamTotp.generateAuthCode(this.config.shared_secret, (err, code) => {
-                if (err) return reject(err);
-                return resolve(code);
-            });
-        });
+        return SteamTotp.generateAuthCode(this.config.shared_secret);
     }
 
     async setCookies(cookies) {
