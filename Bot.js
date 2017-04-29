@@ -12,6 +12,10 @@ class Bot {
     }
 
     async start() {
+        if (!this.getTarget()) {
+            console.log(`${this.tag} Invalid target set. Aborting.`);
+            return;
+        }
         const steam = new SteamClient.CMClient();
         if (this.config.proxy) {
             steam.setHttpProxy(`http://${this.config.proxy}`);
@@ -56,9 +60,10 @@ class Bot {
         }
         if (inventory.length === 0) return;
         const chunkedItems = Bot.chunkArray(inventory, 50);
-        console.log(`${this.tag} ${chunkedItems.length} groups of 50 items will be sent to ${this.config.target}.`);
+        const target = this.getTarget();
+        console.log(`${this.tag} ${chunkedItems.length} groups of 50 items will be sent to ${target}.`);
         chunkedItems.forEach((items, i) => {
-            const offer = this.manager.createOffer(this.config.target);
+            const offer = this.manager.createOffer(target);
             items.forEach(item => offer.addMyItem(item));
             console.log(`${this.tag} Sending trade offer for group #${i + 1} of ${items.length} items.`);
             offer.send((sendErr) => {
@@ -166,6 +171,17 @@ class Bot {
                 return resolve();
             });
         });
+    }
+
+    getTarget() {
+        if (Array.isArray(this.config.target)) {
+            if (this.config.target.length === 0) {
+                return '';
+            }
+            // return random element from array
+            return this.config.target[Math.floor(Math.random() * this.config.target.length)];
+        }
+        return this.config.target;
     }
 
     static waitForEvent(obj, name) {
