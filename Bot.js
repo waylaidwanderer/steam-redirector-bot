@@ -90,6 +90,7 @@ class Bot {
         await this.acceptOffer(offer);
         let receivedItems;
         try {
+            console.log(`${this.tag} Fetching list of received items...`);
             receivedItems = await this.getReceivedItems(offer);
         } catch (err) {
             console.log(`${this.tag} Couldn't get list of received items from trade offer: ${err.toString()}`);
@@ -119,22 +120,25 @@ class Bot {
         return new Promise((resolve, reject) => {
             offer.getExchangeDetails(true, async (err, status, tradeInitTime, receivedItems) => {
                 if (err) {
-                    if (retries >= 3) {
+                    if (retries >= 5) {
                         return reject(err);
                     }
+                    console.log(`${this.tag} Failed to get list of received items: ${err}. Trying again in ${(retries + 1) * 20} seconds.`);
                     await new Promise(resolve2 => setTimeout(resolve2, (retries + 1) * 20 * 1000));
-                    return this.getReceivedItems(offer, retries + 1);
+                    return resolve(false);
                 }
                 if (status !== TradeOfferManager.ETradeStatus.Complete) {
                     if (status > TradeOfferManager.ETradeStatus.Complete || retries >= 3) {
                         return reject(status);
                     }
+                    console.log(`${this.tag} Failed to get list of received items because status is ${TradeOfferManager.ETradeStatus[status]}. Trying again in one minute.`);
                     await new Promise(resolve2 => setTimeout(resolve2, 60 * 1000));
-                    return this.getReceivedItems(offer, retries + 1);
+                    return resolve(false);
                 }
+                console.log(`${this.tag} Successfully fetched list of received items.`);
                 return resolve(receivedItems);
             });
-        });
+        }).then(receivedItems => receivedItems || this.getReceivedItems(offer, retries + 1));
     }
 
     async acceptOffer(offer, tries = 1) {
@@ -142,19 +146,19 @@ class Bot {
             offer.accept(true, async (err) => {
                 if (!err) {
                     console.log(`${this.tag} Accepted trade offer #${offer.id} from ${offer.partner.toString()}.`);
-                    return resolve(offer);
+                    return resolve(true);
                 }
                 // retry accept until successful
                 const minToWait = err.toString().includes('(16)') ? 15 : tries;
                 if (tries === 3) {
                     console.log(`${this.tag} Failed to accept trade offer after 3 tries (might have been accepted already).`);
-                    return resolve(offer);
+                    return resolve(true);
                 }
                 console.log(`${this.tag} Error accepting trade offer #${offer.id} from ${offer.partner.toString()}. Trying again in ${minToWait} minutes.`);
                 await new Promise(resolve2 => setTimeout(resolve2, minToWait * 60 * 1000));
-                return this.acceptOffer(offer, tries + 1);
+                return resolve(false);
             });
-        });
+        }).then(success => (success ? Promise.resolve() : this.acceptOffer(offer, tries + 1)));
     }
 
     async loginToSteamClient() {
