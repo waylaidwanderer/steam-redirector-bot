@@ -9,6 +9,7 @@ class Bot {
     constructor(config) {
         this.config = config;
         this.tag = `[${config.username}]`;
+        this.recoverFromFailure = true;
     }
 
     async start() {
@@ -47,9 +48,13 @@ class Bot {
         this.community.on('sessionExpired', this.retryLogin.bind(this));
         this.community.startConfirmationChecker(10000, this.config.identity_secret);
         this.manager.on('newOffer', this.onNewOffer.bind(this));
+        // Every minute, if we need to recover from failure (i.e. `getExchangeDetails` failed),
+        // simply send all inventory items to target.
         setInterval(() => {
-            this.manager.getInventoryContents(730, 2, true, this.onInventoryLoaded.bind(this));
-        }, 10 * 60 * 1000); // check inventory every 10 minutes and send items to target
+            if (this.recoverFromFailure) {
+                this.manager.getInventoryContents(730, 2, true, this.onInventoryLoaded.bind(this));
+            }
+        }, 60 * 1000);
     }
 
     async onInventoryLoaded(err, inventory) {
@@ -58,6 +63,7 @@ class Bot {
             console.log(`${this.tag} Error loading inventory: ${err}`);
             return;
         }
+        this.recoverFromFailure = false;
         if (inventory.length === 0) return;
         const chunkedItems = Bot.chunkArray(inventory, 50);
         const target = this.getTarget();
@@ -69,6 +75,7 @@ class Bot {
             offer.send((sendErr) => {
                 if (!sendErr) return;
                 console.log(`${this.tag} ${sendErr}`);
+                this.recoverFromFailure = true;
             });
         });
     }
@@ -79,25 +86,74 @@ class Bot {
             console.log(`${this.tag} Declined trade offer from ${offer.partner.toString()} trying to take my items.`);
             return;
         }
-        this.acceptOffer(offer);
+        console.log(`${this.tag} Accepting trade offer with ${offer.itemsToReceive.length} items.`);
+        await this.acceptOffer(offer);
+        let receivedItems;
+        try {
+            receivedItems = this.getReceivedItems(offer);
+        } catch (err) {
+            console.log(`${this.tag} Couldn't get list of received items from trade offer: ${err.toString()}`);
+            this.recoverFromFailure = true;
+            return;
+        }
+        const chunkedItems = Bot.chunkArray(receivedItems, 50);
+        const target = this.getTarget();
+        console.log(`${this.tag} ${chunkedItems.length} groups of 50 items will be sent to ${target}.`);
+        chunkedItems.forEach((items, i) => {
+            const sendOffer = this.manager.createOffer(target);
+            items.forEach(item => sendOffer.addMyItem({
+                assetid: item.new_assetid,
+                appid: 730,
+                contextid: 2,
+            }));
+            console.log(`${this.tag} Sending trade offer for group #${i + 1} of ${items.length} items.`);
+            sendOffer.send((sendErr) => {
+                if (!sendErr) return;
+                console.log(`${this.tag} ${sendErr}`);
+                this.recoverFromFailure = true;
+            });
+        });
     }
 
-    async acceptOffer(offer, tries) {
-        const currentTries = tries || 1;
-        offer.accept(true, async (err) => {
-            if (!err) {
-                console.log(`${this.tag} Accepted trade offer #${offer.id} from ${offer.partner.toString()}.`);
-                return;
-            }
-            // retry accept until successful
-            const minToWait = err.toString().includes('(16)') ? 15 : currentTries;
-            if (currentTries === 3) {
-                console.log(`${this.tag} Failed to accept trade offer after 3 tries (might have been accepted already).`);
-                return;
-            }
-            console.log(`${this.tag} Error accepting trade offer #${offer.id} from ${offer.partner.toString()}. Trying again in ${minToWait} minutes.`);
-            await new Promise(resolve => setTimeout(resolve, minToWait * 60 * 1000));
-            this.acceptOffer(offer, currentTries + 1);
+    async getReceivedItems(offer, retries = 0) {
+        return new Promise((resolve, reject) => {
+            offer.getExchangeDetails(true, async (err, status, tradeInitTime, receivedItems) => {
+                if (err) {
+                    if (retries >= 3) {
+                        return reject(err);
+                    }
+                    await new Promise(resolve2 => setTimeout(resolve2, (retries + 1) * 20 * 1000));
+                    return this.getReceivedItems(offer, retries + 1);
+                }
+                if (status !== TradeOfferManager.ETradeStatus.Complete) {
+                    if (status > TradeOfferManager.ETradeStatus.Complete || retries >= 3) {
+                        return reject(status);
+                    }
+                    await new Promise(resolve2 => setTimeout(resolve2, 60 * 1000));
+                    return this.getReceivedItems(offer, retries + 1);
+                }
+                return resolve(receivedItems);
+            });
+        });
+    }
+
+    async acceptOffer(offer, tries = 1) {
+        return new Promise((resolve) => {
+            offer.accept(true, async (err) => {
+                if (!err) {
+                    console.log(`${this.tag} Accepted trade offer #${offer.id} from ${offer.partner.toString()}.`);
+                    return resolve(offer);
+                }
+                // retry accept until successful
+                const minToWait = err.toString().includes('(16)') ? 15 : tries;
+                if (tries === 3) {
+                    console.log(`${this.tag} Failed to accept trade offer after 3 tries (might have been accepted already).`);
+                    return resolve(offer);
+                }
+                console.log(`${this.tag} Error accepting trade offer #${offer.id} from ${offer.partner.toString()}. Trying again in ${minToWait} minutes.`);
+                await new Promise(resolve2 => setTimeout(resolve2, minToWait * 60 * 1000));
+                return this.acceptOffer(offer, tries + 1);
+            });
         });
     }
 
