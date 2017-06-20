@@ -90,7 +90,7 @@ class Bot {
         await this.acceptOffer(offer);
         let receivedItems;
         try {
-            receivedItems = this.getReceivedItems(offer);
+            receivedItems = await this.getReceivedItems(offer);
         } catch (err) {
             console.log(`${this.tag} Couldn't get list of received items from trade offer: ${err.toString()}`);
             this.recoverFromFailure = true;
