@@ -24,6 +24,11 @@ class Bot {
         this.client = new SteamUser(steam, {
             promptSteamGuardCode: false,
         });
+        const webSessionPromise = new Promise((resolve) => {
+            this.client.on('webSession', (sessionID, cookies) => {
+                resolve([sessionID, cookies]);
+            });
+        });
         console.log(`${this.tag} Logging into Steam client...`);
         await this.loginToSteamClient();
         console.log(`${this.tag} Logged into Steam client with IP ${this.client.publicIP}!`);
@@ -32,15 +37,14 @@ class Bot {
                 proxy: this.config.proxy ? `http://${this.config.proxy}` : undefined,
             }),
         });
+        const [, cookies] = await webSessionPromise;
+        this.community.setCookies(cookies);
         this.manager = new TradeOfferManager({
             steam: this.client,
             community: this.community,
             language: 'en',
             cancelTime: 5 * 60 * 1000,
         });
-        console.log(`${this.tag} Waiting 30s before logging into Steam Community website...`);
-        await new Promise(resolve => setTimeout(resolve, 30 * 1000));
-        await this.retryLogin();
         this.community.on('debug', (message) => {
             if (message === 'Checking confirmations') return;
             console.log(`${this.tag} ${message}`);
