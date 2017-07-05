@@ -48,14 +48,12 @@ class Bot {
         }, 60 * 1000);
     }
 
-    cancelOutgoingTradeOffers() {
-        this.manager.getOffers(TradeOfferManager.EOfferFilter.ActiveOnly, null, (err, sent) => {
-            if (err) {
-                console.log(`${this.tag} Couldn't fetch active offers.`);
-                return;
-            }
-            console.log(`${this.tag} Cancelling ${sent.length} active trade offers sent by us.`);
-            sent.forEach(offer => offer.cancel());
+    getOffersAsync(filter, historicalCutoff) {
+        return new Promise((resolve, reject) => {
+            this.manager.getOffers(filter, historicalCutoff, (err, sent, received) => {
+                if (err) return reject(err);
+                return resolve([sent, received]);
+            });
         });
     }
 
@@ -68,8 +66,26 @@ class Bot {
         this.recoverFromFailure = false;
         if (inventory.length === 0) return;
         // make sure we only have 5 outgoing trade offers max to one account
-        const numItemsToSend = Math.max(50, Math.ceil(inventory.length / 5.0));
-        const chunkedItems = Bot.chunkArray(inventory, numItemsToSend);
+        let sentOffers;
+        try {
+            [sentOffers] = this.getOffersAsync(TradeOfferManager.EOfferFilter.ActiveOnly, null);
+        } catch (getOffersErr) {
+            console.log(`${this.tag} Error getting active trade offers: ${getOffersErr.toString()}`);
+            this.recoverFromFailure = true;
+            return;
+        }
+        const itemIdsInSentOffers = [];
+        sentOffers.forEach(offer => offer.itemsToGive
+                                         .forEach(item => itemIdsInSentOffers.push(item.assetid)));
+        const itemsNotInActiveTradeOffers = [];
+        inventory.forEach((inventoryItem) => {
+            if (!itemIdsInSentOffers.includes(inventoryItem.assetid)) {
+                itemsNotInActiveTradeOffers.push(inventoryItem);
+            }
+        });
+        if (itemsNotInActiveTradeOffers.length === 0) return;
+        const numItemsToSend = Math.max(50, Math.ceil(itemsNotInActiveTradeOffers.length / 5.0));
+        const chunkedItems = Bot.chunkArray(itemsNotInActiveTradeOffers, numItemsToSend);
         const target = this.getTarget();
         console.log(`${this.tag} ${chunkedItems.length} groups of ${numItemsToSend} items will be sent to ${target}.`);
         chunkedItems.forEach((items, i) => {
@@ -79,9 +95,6 @@ class Bot {
             offer.send((sendErr) => {
                 if (!sendErr) return;
                 console.log(`${this.tag} ${sendErr}`);
-                if (sendErr.toString().includes('You have sent too many trade offers')) {
-                    this.cancelOutgoingTradeOffers();
-                }
                 this.recoverFromFailure = true;
             });
         });
@@ -120,9 +133,6 @@ class Bot {
             sendOffer.send((sendErr) => {
                 if (!sendErr) return;
                 console.log(`${this.tag} ${sendErr}`);
-                if (sendErr.toString().includes('You have sent too many trade offers')) {
-                    this.cancelOutgoingTradeOffers();
-                }
                 this.recoverFromFailure = true;
             });
         });
