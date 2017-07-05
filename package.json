@@ -8,10 +8,8 @@
   "license": "MIT",
   "dependencies": {
     "request": "^2.81.0",
-    "steam-client": "2.3.0-beta1",
     "steam-totp": "^1.4.0",
     "steam-tradeoffer-manager": "^2.7.0",
-    "steam-user": "^3.19.1",
     "steamcommunity": "^3.30.7"
   },
   "devDependencies": {

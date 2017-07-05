@@ -1,7 +1,5 @@
 const request = require('request');
-const SteamClient = require('steam-client');
 const SteamCommunity = require('steamcommunity');
-const SteamUser = require('steam-user');
 const SteamTotp = require('steam-totp');
 const TradeOfferManager = require('steam-tradeoffer-manager');
 
@@ -17,30 +15,23 @@ class Bot {
             console.log(`${this.tag} Invalid target set. Aborting.`);
             return;
         }
-        const steam = new SteamClient.CMClient();
-        if (this.config.proxy) {
-            steam.setHttpProxy(`http://${this.config.proxy}`);
-        }
-        this.client = new SteamUser(steam, {
-            promptSteamGuardCode: false,
+        const r = request.defaults({
+            proxy: this.config.proxy ? `http://${this.config.proxy}` : undefined,
         });
-        console.log(`${this.tag} Logging into Steam client...`);
-        await this.loginToSteamClient();
-        console.log(`${this.tag} Logged into Steam client with IP ${this.client.publicIP}!`);
         this.community = new SteamCommunity({
-            request: request.defaults({
-                proxy: this.config.proxy ? `http://${this.config.proxy}` : undefined,
-            }),
+            request: r,
         });
         this.manager = new TradeOfferManager({
-            steam: this.client,
             community: this.community,
             language: 'en',
+            pollInterval: 5000,
+            globalAssetCache: true,
             cancelTime: 5 * 60 * 1000,
         });
-        console.log(`${this.tag} Waiting 30s before logging into Steam Community website...`);
-        await new Promise(resolve => setTimeout(resolve, 30 * 1000));
-        await this.retryLogin();
+        console.log(`${this.tag} Logging into Steam client with proxy ${this.config.proxy}...`);
+        const cookies = await this.login();
+        console.log(`${this.tag} Successfully logged in!`);
+        await this.setCookies(cookies);
         this.community.on('debug', (message) => {
             if (message === 'Checking confirmations') return;
             console.log(`${this.tag} ${message}`);
@@ -182,29 +173,10 @@ class Bot {
         }).then(success => (success ? Promise.resolve() : this.acceptOffer(offer, tries + 1)));
     }
 
-    async loginToSteamClient() {
-        const code = await this.generateAuthCode();
-        console.log(`${this.tag} Using 2FA code "${code}".`);
-        const loggedOnPromise = Bot.waitForEvent(this.client, 'loggedOn');
-        this.client.logOn({
-            accountName: this.config.username,
-            password: this.config.password,
-            twoFactorCode: code,
-        });
-        this.client.on('steamGuard', async (domain, callback) => {
-            console.log(`${this.tag} Invalid 2FA code. Waiting 30s before generating new one...`);
-            await new Promise(resolve => setTimeout(resolve, 30 * 1000));
-            const newCode = await this.generateAuthCode();
-            console.log(`${this.tag} New code generated: "${newCode}"`);
-            callback(newCode);
-        });
-        await loggedOnPromise;
-    }
-
-    async loginToSteamCommunity() {
-        const code = await this.generateAuthCode();
-        console.log(`${this.tag} Using 2FA code "${code}".`);
+    login() {
         return new Promise((resolve, reject) => {
+            const code = this.generateAuthCode();
+            console.log(`${this.tag} Using 2FA code "${code}".`);
             this.community.login({
                 accountName: this.config.username,
                 password: this.config.password,
@@ -221,7 +193,7 @@ class Bot {
         console.log(`${this.tag} Logging into Steam Community website...`);
         for (let i = 0; i < 3; i++) {
             try {
-                const cookies = await this.loginToSteamCommunity();
+                const cookies = await this.login();
                 await this.setCookies(cookies);
                 console.log(`${this.tag} Successfully logged in!`);
                 return Promise.resolve();
@@ -241,11 +213,11 @@ class Bot {
     }
     /* eslint-enable no-await-in-loop */
 
-    async generateAuthCode() {
+    generateAuthCode() {
         return SteamTotp.generateAuthCode(this.config.shared_secret);
     }
 
-    async setCookies(cookies) {
+    setCookies(cookies) {
         return new Promise((resolve, reject) => {
             this.manager.setCookies(cookies, null, (err) => {
                 if (err) return reject(err);
