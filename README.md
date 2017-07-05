@@ -13,7 +13,8 @@
 
 ## Installation
 
-Clone this project then install dependencies with `npm install`.
+1. Clone this project then install dependencies with `npm install`.
+2. Rename `config.example.js` to `config.js` then modify with your settings.
 
 ## How To Use
 
