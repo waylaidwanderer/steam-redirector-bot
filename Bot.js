@@ -190,12 +190,15 @@ class Bot {
 
     /* eslint-disable no-await-in-loop */
     async retryLogin() {
+        if (this.isRetryingLogin) return Promise.resolve();
+        this.isRetryingLogin = true;
         console.log(`${this.tag} Logging into Steam Community website...`);
         for (let i = 0; i < 3; i++) {
             try {
                 const cookies = await this.login();
                 await this.setCookies(cookies);
                 console.log(`${this.tag} Successfully logged in!`);
+                this.isRetryingLogin = false;
                 return Promise.resolve();
             } catch (err) {
                 if (err.toString().includes('SteamGuardMobile')) {
@@ -208,8 +211,8 @@ class Bot {
         }
         console.log(`${this.tag} Can't login to account! Waiting a minute before trying again...`);
         await new Promise(resolve => setTimeout(resolve, 60 * 1000));
-        await this.retryLogin();
-        return Promise.resolve();
+        this.isRetryingLogin = false;
+        return this.retryLogin();
     }
     /* eslint-enable no-await-in-loop */
 
