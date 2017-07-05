@@ -68,7 +68,7 @@ class Bot {
         // make sure we only have 5 outgoing trade offers max to one account
         let sentOffers;
         try {
-            [sentOffers] = this.getOffersAsync(TradeOfferManager.EOfferFilter.ActiveOnly, null);
+            [sentOffers] = await this.getOffersAsync(TradeOfferManager.EOfferFilter.ActiveOnly, null);
         } catch (getOffersErr) {
             console.log(`${this.tag} Error getting active trade offers: ${getOffersErr.toString()}`);
             this.recoverFromFailure = true;
