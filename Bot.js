@@ -1,3 +1,5 @@
+const notificationUrl = require('./config').notification_url;
+
 const request = require('request');
 const SteamCommunity = require('steamcommunity');
 const SteamTotp = require('steam-totp');
@@ -92,10 +94,16 @@ class Bot {
             const offer = this.manager.createOffer(target);
             items.forEach(item => offer.addMyItem(item));
             console.log(`${this.tag} Sending trade offer for group #${i + 1} of ${items.length} items.`);
-            offer.send((sendErr) => {
+            offer.send(async (sendErr) => {
                 if (!sendErr) return;
                 console.log(`${this.tag} ${sendErr}`);
-                this.recoverFromFailure = true;
+                if (sendErr.toString().includes('You cannot trade with') && sendErr.toString().includes('because you have a trade ban.')) {
+                    await Bot.notifyOfTradeBan(this.community.steamID);
+                } else if (sendErr.toString().includes('You cannot trade with') && sendErr.toString().includes('they have a trade ban')) {
+                    await Bot.notifyOfTradeBan(offer.target);
+                } else {
+                    this.recoverFromFailure = true;
+                }
             });
         });
     }
@@ -130,10 +138,35 @@ class Bot {
                 contextid: 2,
             }));
             console.log(`${this.tag} Sending trade offer for group #${i + 1} of ${items.length} items.`);
-            sendOffer.send((sendErr) => {
+            sendOffer.send(async (sendErr) => {
                 if (!sendErr) return;
                 console.log(`${this.tag} ${sendErr}`);
-                this.recoverFromFailure = true;
+                if (sendErr.toString().includes('You cannot trade with') && sendErr.toString().includes('because you have a trade ban.')) {
+                    await Bot.notifyOfTradeBan(this.community.steamID);
+                } else if (sendErr.toString().includes('You cannot trade with') && sendErr.toString().includes('they have a trade ban')) {
+                    await Bot.notifyOfTradeBan(sendOffer.target);
+                } else {
+                    this.recoverFromFailure = true;
+                }
+            });
+        });
+    }
+
+    static notifyOfTradeBan(steamId) {
+        if (steamId.toString() in global.tradeBanAlerts) return Promise.resolve();
+        console.log(`Trade Ban detected on SteamID64 ${steamId.toString()}.`);
+        global.tradeBanAlerts[steamId.toString()] = true;
+        if (!notificationUrl) return Promise.resolve();
+        return new Promise((resolve) => {
+            request.post(notificationUrl, {
+                form: {
+                    content: `@everyone SteamID64 ${steamId.toString()} is trade banned.`,
+                },
+            }, (err) => {
+                if (err) {
+                    console.log(`Error executing webhook: ${err.toString()}`);
+                }
+                resolve();
             });
         });
     }

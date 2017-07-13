@@ -4,7 +4,8 @@ const Bot = require('./Bot');
 main();
 
 async function main() {
-    config.forEach((botConfig) => {
+    global.tradeBanAlerts = {};
+    config.bots.forEach((botConfig) => {
         const bot = new Bot(botConfig);
         bot.start();
     });
