@@ -50,11 +50,11 @@ class Bot {
         }, 60 * 1000);
     }
 
-    getOffersAsync(filter, historicalCutoff) {
+    getSentOffersAsync() {
         return new Promise((resolve, reject) => {
-            this.manager.getOffers(filter, historicalCutoff, (err, sent, received) => {
+            this.manager.getOffers(TradeOfferManager.EOfferFilter.ActiveOnly, null, (err, sent) => {
                 if (err) return reject(err);
-                return resolve([sent, received]);
+                return resolve(sent);
             });
         });
     }
@@ -70,7 +70,7 @@ class Bot {
         // make sure we only have 5 outgoing trade offers max to one account
         let sentOffers;
         try {
-            [sentOffers] = await this.getOffersAsync(TradeOfferManager.EOfferFilter.ActiveOnly, null);
+            sentOffers = await this.getSentOffersAsync();
         } catch (getOffersErr) {
             console.log(`${this.tag} Error getting active trade offers: ${getOffersErr.toString()}`);
             this.recoverFromFailure = true;
