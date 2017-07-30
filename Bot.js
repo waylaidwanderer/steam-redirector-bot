@@ -25,9 +25,7 @@ class Bot {
         });
         this.manager = new TradeOfferManager({
             community: this.community,
-            language: 'en',
             pollInterval: 5000,
-            globalAssetCache: true,
             cancelTime: 5 * 60 * 1000,
         });
         console.log(`${this.tag} Logging into Steam client with proxy ${this.config.proxy}...`);
