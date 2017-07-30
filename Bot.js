@@ -281,12 +281,6 @@ class Bot {
         return this.config.target;
     }
 
-    static waitForEvent(obj, name) {
-        return new Promise((resolve) => {
-            obj.on(name, resolve);
-        });
-    }
-
     static chunkArray(arr, length) {
         const sets = [];
         const chunks = arr.length / length;
